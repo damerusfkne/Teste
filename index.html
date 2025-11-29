@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protocol Console - Project K</title>
+    
+    <!-- Importação da Fonte VT323 do Google Fonts (Crucial para o visual de terminal) --><link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ======================================= */
+        /* 1. ESTILOS GLOBAIS (BODY E FONTES) */
+        /* ======================================= */
+        body {
+            /* Fundo PRETO e Cores do Terminal */
+            background-color: #000000; 
+            color: #00FF00; /* Cor de texto padrão verde neon */
+            
+            /* Usando a fonte importada */
+            font-family: 'VT323', monospace; 
+            
+            padding: 20px;
+            margin: 0;
+            min-height: 100vh; /* Ocupa a tela toda */
+            
+            /* Efeito de brilho/saturação da tela CRT */
+            box-shadow: inset 0 0 20px rgba(0, 255, 0, 0.4); 
+            line-height: 1.2; /* Melhor espaçamento */
+        }
+
+        /* ======================================= */
+        /* 2. CONTAINER PRINCIPAL (CONSOLA) */
+        /* ======================================= */
+        .main-console {
+            /* Borda e Brilho do Container */
+            border: 1px solid #00FF00;
+            padding: 30px;
+            margin: 40px auto;
+            width: 90%;
+            max-width: 1200px;
+            
+            /* Efeito de brilho de borda (Glow) */
+            box-shadow: 0 0 10px #00FF00, inset 0 0 5px #00FF00; 
+        }
+
+        /* ======================================= */
+        /* 3. NAVEGAÇÃO E HEADER */
+        /* ======================================= */
+        .console-header {
+            display: flex;
+            justify-content: space-between; 
+            align-items: center;
+            padding-bottom: 10px; 
+        }
+
+        .site-title {
+            color: #FFFFFF;
+            font-size: 1.8em;
+            text-shadow: 0 0 10px #FFFFFF; 
+            letter-spacing: 2px;
+        }
+
+        .main-nav a {
+            color: #00FF00; 
+            text-decoration: none; 
+            font-size: 1.1em;
+            padding: 0 8px; 
+            text-shadow: 0 0 7px rgba(0, 255, 0, 0.8); 
+            transition: color 0.1s, text-shadow 0.1s; 
+        }
+
+        .main-nav a:hover {
+            color: #FF0000; 
+            text-shadow: 0 0 10px #FF0000; 
+        }
+
+        .header-divider {
+            border: 0;
+            height: 1px;
+            background-color: #FF0000; 
+            box-shadow: 0 0 5px #FF0000; 
+            margin: 0 0 30px 0; 
+        }
+
+        /* ======================================= */
+        /* 4. ÁREA DE CONTEÚDO E STATUS (FLEX CONTAINER) */
+        /* ======================================= */
+        .main-content-area {
+            display: flex; 
+            gap: 40px; 
+            min-height: 400px; 
+            flex-wrap: wrap; /* Adicionado para responsividade em telas pequenas */
+        }
+
+        .status-panel {
+            flex: 1; 
+            min-width: 300px; /* Garante que não fique muito esmagado */
+            padding-right: 20px;
+            max-height: 400px; /* Altura máxima para o painel de status */
+            overflow-y: auto; /* Scroll para logs dinâmicos */
+        }
+        
+        /* Títulos */
+        .status-panel h3 {
+            color: #FFFFFF;
+            font-size: 1.3em;
+            text-shadow: 0 0 5px #FFFFFF;
+            margin-bottom: 15px;
+        }
+
+        /* Linhas de Status */
+        .status-line {
+            font-size: 1.1em;
+            margin: 5px 0;
+            white-space: pre-wrap; /* Permite quebra de linha se a mensagem for longa */
+        }
+
+        .status-line.success {
+            color: #00FF00;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.7);
+        }
+
+        .status-line.alert {
+            color: #FF0000;
+            text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
+        }
+
+        /* Campo de Comando (Input) */
+        .command-line {
+            display: flex;
+            align-items: center;
+            margin-top: 30px;
+            padding: 5px 0;
+            border-bottom: 1px solid #00FF00; 
+            width: 80%; 
+        }
+
+        .prompt {
+            font-size: 1.2em;
+            color: #FF0000; 
+            margin-right: 5px;
+        }
+
+        .command-input {
+            background: transparent;
+            border: none;
+            color: inherit; 
+            width: 100%;
+            outline: none; 
+            font-size: 1.2em;
+            padding: 0;
+        }
+
+        /* ======================================= */
+        /* 5. VISUALIZADOR DE DADOS (CRT/GLITCH) */
+        /* ======================================= */
+
+        .visualizer-panel {
+            flex: 1.5; 
+            min-width: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-left: 20px;
+        }
+        
+        /* Container da Tela (moldura) */
+        .visualizer-screen {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #FF0000; 
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.5), inset 0 0 8px rgba(255, 0, 0, 0.5); 
+            background-color: #050505; 
+            position: relative; 
+            overflow: hidden;
+        }
+
+        /* Scanlines (Linhas de Varredura) */
+        .visualizer-screen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* Gradient para simular as linhas pretas horizontais do CRT */
+            background: repeating-linear-gradient(
+                transparent 0,
+                rgba(18, 16, 16, 0.5) 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            opacity: 0.3;
+        }
+
+        .data-image {
+            display: block;
+            width: 100%;
+            height: auto;
+            position: relative; 
+            
+            /* Efeito de transição para o comando */
+            opacity: 0; /* Começa oculto */
+            transition: opacity 0.5s ease-in-out; 
+            
+            /* FILTROS E ANIMAÇÃO GLITCH */
+            filter: saturate(1.8) contrast(1.2) hue-rotate(-10deg); 
+            image-rendering: pixelated; 
+            animation: glitch-image 10s infinite alternate; /* Animação aplicada */
+        }
+        
+        .data-image.visible {
+            opacity: 1;
+        }
+
+
+        /* Pseudo-elementos para as barras de glitch (::before para Vermelho) */
+        .data-image::before,
+        .data-image::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            animation: glitch-bar 4s infinite alternate; 
+            z-index: 1; 
+            pointer-events: none; 
+        }
+
+        .data-image::before {
+            background-color: rgba(255, 0, 0, 0.4); 
+            mix-blend-mode: overlay; 
+        }
+
+        /* Pseudo-elemento para as barras de glitch (::after para Verde) */
+        .data-image::after {
+            background-color: rgba(0, 255, 0, 0.4); 
+            animation-delay: 0.5s; 
+            mix-blend-mode: screen;
+        }
+
+        .visualizer-label {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #FF0000;
+            text-shadow: 0 0 5px rgba(255, 0, 0, 0.7);
+            letter-spacing: 1px;
+        }
+
+        /* ======================================= */
+        /* 6. RODAPÉ */
+        /* ======================================= */
+
+        .console-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+            margin-top: 50px;
+            padding-top: 10px;
+            border-top: 1px solid #FF0000;
+            text-shadow: 0 0 3px rgba(255, 0, 0, 0.5);
+        }
+
+        /* ======================================= */
+        /* 7. KEYFRAMES (ANIMAÇÕES) */
+        /* ======================================= */
+
+        @keyframes glitch-image {
+            0% {
+                transform: translate(0, 0);
+                filter: hue-rotate(0deg) saturate(1.8);
+            }
+            10% {
+                transform: translate(-2px, 2px);
+                filter: hue-rotate(10deg) saturate(2.5);
+            }
+            20% {
+                transform: translate(2px, -2px);
+                filter: hue-rotate(-5deg) saturate(2);
+            }
+            30% {
+                transform: translate(-3px, 3px);
+                filter: hue-rotate(15deg) saturate(2.8);
+            }
+            40% {
+                transform: translate(3px, -3px);
+                filter: hue-rotate(-10deg) saturate(2.2);
+            }
+            50%, 100% {
+                transform: translate(0, 0);
+                filter: hue-rotate(0deg) saturate(1.8);
+            }
+        }
+
+        @keyframes glitch-bar {
+            0% {
+                clip-path: inset(0 0 100% 0);
+            }
+            2%, 8% {
+                clip-path: inset(30% 0 60% 0);
+            }
+            4%, 10% {
+                clip-path: inset(0 0 100% 0);
+            }
+            6%, 12% {
+                clip-path: inset(70% 0 20% 0);
+            }
+            14%, 100% {
+                clip-path: inset(0 0 100% 0);
+            }
+        }
+
+        /* ======================================= */
+        /* 8. RESPONSIVIDADE (MOBILE) */
+        /* ======================================= */
+
+        @media (max-width: 768px) {
+            .main-content-area {
+                flex-direction: column; /* Colunas empilham em telas pequenas */
+            }
+            
+            .status-panel, .visualizer-panel {
+                min-width: 100%;
+                padding-left: 0;
+                padding-right: 0;
+            }
+
+            .console-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .main-nav {
+                margin-top: 10px;
+            }
+
+            .command-line {
+                width: 100%; /* Ocupa a largura total no mobile */
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="main-console">
+        
+        <!-- HEADER E NAVEGAÇÃO --><header class="console-header">
+            <!-- TÍTULO PRINCIPAL: PROJECT K --><div class="site-title">PROJECT K</div>
+            <nav class="main-nav">
+                <a href="#">Inicio</a> | 
+                <a href="#">Anemoia</a> | 
+                <a href="#">Hexatombe</a> |
+                <!-- Link 'Sangue' atualizado para a URL da imagem de Ordem Paranormal -->
+                <a href="https://static.wikia.nocookie.net/ordemparanormal/images/e/eb/Coura%C3%A7as_na_abertura_de_Hexatombe.png/revision/latest?cb=20251127003904&path-prefix=pt-br" target="_blank">Sangue</a>
+            </nav>
+        </header>
+        <hr class="header-divider">
+
+        <!-- CONTEÚDO PRINCIPAL: STATUS E VISUALIZADOR --><div class="main-content-area">
+            
+            <!-- COLUNA ESQUERDA: ÁREA DE STATUS E COMANDO --><section class="status-panel" id="statusPanel">
+                <h3>ULTRAKILL PROTOCOL:</h3>
+                <p class="status-line alert">MANKIND IS DEAD.</p>
+                <p class="status-line success">BLOOD IS FUEL.</p>
+                <p class="status-line alert">HELL IS FULL.</p>
+                <p class="status-line success">Once the great and beloved king of the Lust layer, Minos has now been reduced to a shambling corpse.</p>
+                <p class="status-line alert">But the crimes thy kind have committed against humanity are NOT forgotten. And thy punishment.. is DEATH!</p>
+                <p class="status-line success">May your woes be many and your days few.</p>
+                
+                <!-- Campo de Comando --><div class="command-line">
+                    <span class="prompt"> > </span> 
+                    <input type="text" class="command-input" id="commandInput" placeholder="ENTER COMMAND:">
+                </div>
+            </section>
+
+            <!-- COLUNA DIREITA: VISUALIZADOR DE DADOS --><section class="visualizer-panel">
+                <div class="visualizer-screen">
+                    <!-- Placeholder de alta confiabilidade para garantir a funcionalidade (o Imgur falhou) -->
+                    <img 
+                        src="https://placehold.co/800x800/050505/FFFFFF?text=DEUS+BRANCO%0ACORE+DATA" 
+                        alt="Visualização de Dados" 
+                        class="data-image"
+                        id="visualizerImage"
+                        style="display: none;"
+                        onerror="this.style.display='none'; this.parentNode.style.backgroundColor='#050505'; this.parentNode.innerHTML='<p style=\'color:#FF0000; text-align:center; padding:100px 0;\'>[ ERRO DE CARREGAMENTO DE DADOS - SERVIDOR INDISPONÍVEL ]</p>'"
+                    >
+                </div>
+                <p class="visualizer-label">VISUALIZER: DATA ACQUISITION</p>
+            </section>
+        </div>
+        
+        <!-- RODAPÉ --><footer class="console-footer">
+            <span>AM 07:42</span>
+            <span>|</span>
+            <span>Jan. 01 2045</span>
+        </footer>
+    </div>
+
+    <!-- Script para Lógica de Comando --><script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('commandInput');
+            const image = document.getElementById('visualizerImage');
+            const status = document.getElementById('statusPanel');
+
+            // Define a imagem como oculta inicialmente (garante que o JS a controle)
+            image.style.opacity = '0';
+            image.style.display = 'none';
+
+            // Função auxiliar para adicionar novas linhas de log ao painel de status
+            function logStatus(message, type) {
+                const log = document.createElement('p');
+                log.classList.add('status-line');
+                log.classList.add(type);
+                log.textContent = `> ${message}`;
+                
+                // Encontra a div de comandos para inserir o log antes dela
+                const commandLine = document.querySelector('.command-line');
+                status.insertBefore(log, commandLine);
+                
+                // Garante que o painel role para baixo para mostrar a nova entrada
+                status.scrollTop = status.scrollHeight;
+            }
+
+            // Listener para o evento 'keypress' no campo de comando
+            input.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault(); // Impede o comportamento padrão (ex: submissão de formulário)
+                    const command = input.value.trim();
+                    input.value = ''; // Limpa o input após a execução
+                    
+                    // Adiciona o comando digitado ao log
+                    logStatus(`CMD: ${command}`, 'success'); 
+
+                    if (command.toLowerCase() === 'deus branco') {
+                        logStatus('STATUS: Access Granted. Visualizing Core Data Stream: DEUS BRANCO...', 'alert');
+                        
+                        // 1. Torna o elemento visível para o layout
+                        image.style.display = 'block';
+                        // 2. Aguarda um breve momento e define a opacidade para 1
+                        // Isso permite que a transição CSS de opacidade funcione suavemente
+                        setTimeout(() => {
+                            image.style.opacity = '1';
+                        }, 10); 
+
+                    } else {
+                        logStatus(`STATUS: Command '${command}' not recognized. Access Denied.`, 'alert');
+                        
+                        // Esconde a imagem novamente se o comando não for o correto
+                        image.style.opacity = '0';
+                        setTimeout(() => {
+                            image.style.display = 'none';
+                        }, 500); // 500ms é o tempo da transição
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
